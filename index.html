@@ -136,7 +136,7 @@
 </div>
 
 <script>
-// --- Firebase 核心配置 (已對應 zoo-62638) ---
+// --- 以下為精確修正的 Firebase 配置 ---
 const firebaseConfig = {
     apiKey: "AIzaSyD7KmXt_PjFzyYKz4tXGQAmz_wvmmSjAm4",
     authDomain: "zoo-62638.firebaseapp.com",
@@ -148,14 +148,17 @@ const firebaseConfig = {
     measurementId: "G-W7LL06XX7B"
 };
 
-firebase.initializeApp(firebaseConfig);
+// 初始化 Firebase
+if (!firebase.apps.length) {
+    firebase.initializeApp(firebaseConfig);
+}
 const db = firebase.database();
 
 let products = [];
 let cart = [];
 let currentPay = '現金';
 
-// --- 資料監聽 ---
+// --- 以下所有功能邏輯「完全保留」，不作任何刪減 ---
 db.ref("products").on("value", (snapshot) => {
     products = snapshot.val() || [];
     renderPOS();
@@ -167,7 +170,6 @@ db.ref("history").on("value", (snapshot) => {
     renderHistory(data);
 });
 
-// --- 介面渲染 ---
 function renderPOS() {
     const area = document.getElementById('item-area');
     const navbar = document.getElementById('navbar');
@@ -249,28 +251,15 @@ function setPay(type) {
 
 async function checkout() {
     if(cart.length === 0) return alert("購物車是空的");
-    
     const subtotal = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
     const discount = parseInt(document.getElementById('discount').value) || 0;
     const finalTotal = subtotal - discount;
     const note = document.getElementById('discount-note').value;
+    const order = { time: new Date().toLocaleString(), items: cart, total: finalTotal, discount: discount, note: note, payType: currentPay };
 
-    const order = {
-        time: new Date().toLocaleString(),
-        items: cart,
-        total: finalTotal,
-        discount: discount,
-        note: note,
-        payType: currentPay
-    };
-
-    // 扣庫存邏輯
-    const updates = {};
     cart.forEach(item => {
         const pIndex = products.findIndex(p => p.id === item.id);
-        if(pIndex !== -1) {
-            products[pIndex].stock -= item.qty;
-        }
+        if(pIndex !== -1) products[pIndex].stock -= item.qty;
     });
 
     try {
@@ -279,7 +268,7 @@ async function checkout() {
         alert("結帳成功！");
         clearCart();
     } catch(e) {
-        alert("連線失敗，請檢查網路！已存入離線緩存。");
+        alert("連線失敗！已存入離線緩存。");
         saveOffline(order);
     }
 }
@@ -291,7 +280,6 @@ function clearCart() {
     renderCart();
 }
 
-// --- 管理功能 ---
 function renderAdmin() {
     const tbody = document.getElementById('admin-tbody');
     tbody.innerHTML = "";
@@ -301,4 +289,140 @@ function renderAdmin() {
             <td><input type="text" value="${p.cat}" onchange="editP(${index}, 'cat', this.value)"></td>
             <td><input type="text" value="${p.name}" onchange="editP(${index}, 'name', this.value)"></td>
             <td><input type="number" value="${p.price}" onchange="editP(${index}, 'price', this.value)" style="width:60px;"></td>
-            <td><input type="number" value="${p.stock}" onchange="edit
+            <td><input type="number" value="${p.stock}" onchange="editP(${index}, 'stock', this.value)" style="width:50px;"></td>
+            <td><span class="del-x" onclick="delP(${index})">✕</span></td>
+        `;
+        tbody.appendChild(tr);
+    });
+
+    const cats = [...new Set(products.map(p => p.cat))];
+    const catList = document.getElementById('cat-list-data');
+    catList.innerHTML = "";
+    cats.forEach(c => {
+        const opt = document.createElement('option');
+        opt.value = c;
+        catList.appendChild(opt);
+    });
+
+    const catManage = document.getElementById('cat-manage-list');
+    catManage.innerHTML = "";
+    cats.forEach(c => {
+        const div = document.createElement('div');
+        div.style = "display:flex; justify-content:space-between; margin-bottom:10px; padding:5px; background:#fff; border-radius:5px;";
+        div.innerHTML = `<span>${c}</span><div><button class="edit-cat-btn" onclick="renameCat('${c}')">改名</button><button class="del-cat-btn" onclick="delCat('${c}')">刪除</button></div>`;
+        catManage.appendChild(div);
+    });
+}
+
+function quickAdd() {
+    const cat = document.getElementById('new-p-cat').value;
+    const name = document.getElementById('new-p-name').value;
+    const price = parseInt(document.getElementById('new-p-price').value);
+    const stock = parseInt(document.getElementById('new-p-stock').value);
+    if(!cat || !name || isNaN(price)) return alert("請填寫完整");
+    products.push({ id: Date.now(), cat, name, price, stock: stock || 0 });
+    db.ref("products").set(products);
+    document.getElementById('new-p-name').value = "";
+    document.getElementById('new-p-price').value = "";
+    document.getElementById('new-p-stock').value = "";
+}
+
+function editP(index, key, val) {
+    if(key === 'price' || key === 'stock') val = parseInt(val);
+    products[index][key] = val;
+    db.ref("products").set(products);
+}
+
+function delP(index) {
+    if(confirm("確定刪除嗎？")) {
+        products.splice(index, 1);
+        db.ref("products").set(products);
+    }
+}
+
+function delCat(catName) {
+    if(confirm(`確定刪除「${catName}」嗎？`)) {
+        products = products.filter(p => p.cat !== catName);
+        db.ref("products").set(products);
+    }
+}
+
+function renameCat(oldName) {
+    const newName = prompt(`改名為：`, oldName);
+    if(newName && newName !== oldName) {
+        products.forEach(p => { if(p.cat === oldName) p.cat = newName; });
+        db.ref("products").set(products);
+    }
+}
+
+function renderHistory(data) {
+    const list = document.getElementById('history-list');
+    list.innerHTML = "";
+    const keys = Object.keys(data).reverse();
+    keys.forEach(key => {
+        const order = data[key];
+        const div = document.createElement('div');
+        div.className = "history-card";
+        div.innerHTML = `<span class="history-del-btn" onclick="delHistory('${key}')">刪除</span><strong>🕒 ${order.time}</strong> | 💰 實收: $${order.total}<br><div style="color:#666; font-size:0.9em; margin-top:5px;">${order.items.map(i => `<span class="order-tag">${i.name}x${i.qty}</span>`).join('')}</div>`;
+        list.appendChild(div);
+    });
+}
+
+function delHistory(key) {
+    if(confirm("確定刪除此筆紀錄？")) db.ref("history").child(key).remove();
+}
+
+function togglePanel(id) {
+    const p = document.getElementById(id);
+    p.style.display = (p.style.display === 'flex') ? 'none' : 'flex';
+}
+
+function importExcel(e) {
+    const file = e.target.files[0];
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        const data = new Uint8Array(e.target.result);
+        const workbook = XLSX.read(data, {type: 'array'});
+        const sheet = workbook.Sheets[workbook.SheetNames[0]];
+        const rows = XLSX.utils.sheet_to_json(sheet);
+        const newProducts = rows.map(r => ({ id: Date.now() + Math.random(), cat: r['分類'] || '未分類', name: r['商品名稱'] || '未命名', price: parseInt(r['售價']) || 0, stock: parseInt(r['庫存']) || 0 }));
+        if(confirm("要覆蓋嗎？")) products = newProducts; else products = products.concat(newProducts);
+        db.ref("products").set(products);
+    };
+    reader.readAsArrayBuffer(file);
+}
+
+function exportToExcel() {
+    const ws = XLSX.utils.json_to_sheet(products.map(p => ({ '分類': p.cat, '商品名稱': p.name, '售價': p.price, '庫存': p.stock })));
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, "商品清單");
+    XLSX.writeFile(wb, "LittleNook_商品表.xlsx");
+}
+
+function exportHistory() {
+    db.ref("history").once("value", s => {
+        const data = s.val() || {};
+        const rows = Object.values(data).map(o => ({ '時間': o.time, '實收': o.total, '支付': o.payType, '備註': o.note }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, "銷售紀錄");
+        XLSX.writeFile(wb, `銷售紀錄.xlsx`);
+    });
+}
+
+function saveOffline(order) {
+    const offline = JSON.parse(localStorage.getItem('offline_orders') || '[]');
+    offline.push(order);
+    localStorage.setItem('offline_orders', JSON.stringify(offline));
+}
+
+function syncOfflineData() {
+    const offline = JSON.parse(localStorage.getItem('offline_orders') || '[]');
+    if(offline.length === 0) return alert("無數據");
+    offline.forEach(async (order) => { await db.ref("history").push(order); });
+    localStorage.removeItem('offline_orders');
+    alert("同步成功！");
+}
+</script>
+</body>
+</html>
