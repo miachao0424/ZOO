@@ -49,6 +49,10 @@
         .history-del-btn { position: absolute; top: 10px; right: 10px; color: red; cursor: pointer; font-weight: bold; border: 1px solid red; padding: 2px 5px; border-radius: 4px; font-size: 0.8em; }
         .admin-only { display: none; }
         .summary-box { background: #eef2f9; padding: 10px; border-radius: 10px; border: 1px solid var(--main-blue); margin-top: 10px; }
+        
+        /* 編輯功能專用微調 */
+        .edit-input { width: 90%; padding: 4px; border: 1px solid #ccc; border-radius: 4px; text-align: center; font-size: 0.9em; }
+        .save-btn { color: #28a745; font-weight: bold; cursor: pointer; font-size: 1.2em; margin-right: 8px; }
     </style>
 </head>
 <body>
@@ -110,7 +114,7 @@
     <div class="admin-layout">
         <div class="admin-table-container">
             <table>
-                <thead><tr><th>分類</th><th>品名</th><th>售價</th><th>剩餘</th><th>刪</th></tr></thead>
+                <thead><tr><th>分類</th><th>品名</th><th>售價</th><th>剩餘</th><th>操作</th></tr></thead>
                 <tbody id="admin-tbody"></tbody>
             </table>
         </div>
@@ -158,7 +162,12 @@ function checkAdmin() {
 window.addEventListener('load', checkAdmin);
 window.addEventListener('hashchange', checkAdmin);
 
-db.ref("products").on("value", (s) => { products = s.val() || []; renderPOS(); renderAdmin(); });
+db.ref("products").on("value", (s) => { 
+    products = s.val() || []; 
+    renderPOS(); 
+    renderAdmin(); 
+});
+
 db.ref("history").on("value", (s) => { 
     allOrders = s.val() || {}; 
     renderHistory(allOrders); 
@@ -189,6 +198,7 @@ function renderPOS() {
         area.appendChild(grid);
     });
 }
+
 function addToCart(id) {
     const p = products.find(i => i.id === id);
     if(p.stock <= 0) { alert("此項暫時沒有額度囉！"); return; }
@@ -196,17 +206,21 @@ function addToCart(id) {
     if(inCart) inCart.qty++; else cart.push({...p, qty: 1});
     renderCart();
 }
+
 function renderCart() {
     const list = document.getElementById('cart-list');
     list.innerHTML = cart.map((item, index) => `<div class="cart-item"><span>${item.name} x ${item.qty}</span><span>$ ${item.price * item.qty} <button onclick="removeFromCart(${index})" style="border:none; color:red; background:none; font-weight:bold; margin-left:10px;">✕</button></span></div>`).join('');
     calc();
 }
+
 function removeFromCart(index) { cart.splice(index, 1); renderCart(); }
+
 function calc() {
     const sub = cart.reduce((sum, i) => sum + (i.price * i.qty), 0);
     const dis = parseInt(document.getElementById('discount').value) || 0;
     document.getElementById('total-price').innerText = `$ ${sub + dis}`;
 }
+
 async function checkout() {
     const note = document.getElementById('discount-note').value.trim();
     if(cart.length === 0) return alert("還沒選取品項喔！");
@@ -221,13 +235,16 @@ async function checkout() {
         alert("登記成功！33 會幫你帶回來的 💙"); clearCart();
     } catch(e) { alert("登記失敗"); }
 }
+
 function clearCart() { cart = []; document.getElementById('discount').value = ""; document.getElementById('discount-note').value = ""; renderCart(); }
+
 function calculateSummary(data) {
     const summary = {};
     Object.values(data).forEach(order => { order.items.forEach(item => { summary[item.name] = (summary[item.name] || 0) + item.qty; }); });
     const box = document.getElementById('purchase-summary');
     box.innerHTML = Object.entries(summary).map(([name, qty]) => `<div><strong>${name}</strong>：共 ${qty} 個</div>`).join('') || "目前尚無訂單";
 }
+
 function searchOrders() {
     const name = document.getElementById('search-nickname').value.trim();
     if(!name) return alert("請輸入暱稱");
@@ -236,10 +253,33 @@ function searchOrders() {
     if(myOrders.length === 0) { resultDiv.innerHTML = `<p style="text-align:center; color:red;">找不到「${name}」的登記紀錄</p>`; }
     else { resultDiv.innerHTML = myOrders.map(o => `<div class="history-card"><strong>🕒 ${o.time}</strong><br>${o.items.map(i => `<span class="order-tag">${i.name}x${i.qty}</span>`).join('')}<br><strong>總金額：$${o.total}</strong></div>`).join(''); }
 }
+
+// 修改點：將原本的顯示內容改為 input 輸入框
 function renderAdmin() {
     const tbody = document.getElementById('admin-tbody');
-    tbody.innerHTML = products.map((p, i) => `<tr><td>${p.cat}</td><td>${p.name}</td><td>${p.price}</td><td>${p.stock}</td><td><span class="del-x" onclick="delP(${i})">✕</span></td></tr>`).join('');
+    tbody.innerHTML = products.map((p, i) => `
+        <tr>
+            <td><input type="text" class="edit-input" value="${p.cat}" onchange="products[${i}].cat=this.value"></td>
+            <td><input type="text" class="edit-input" value="${p.name}" onchange="products[${i}].name=this.value"></td>
+            <td><input type="number" class="edit-input" value="${p.price}" onchange="products[${i}].price=parseInt(this.value)||0"></td>
+            <td><input type="number" class="edit-input" value="${p.stock}" onchange="products[${i}].stock=parseInt(this.value)||0"></td>
+            <td>
+                <span class="save-btn" onclick="saveAdmin()">💾</span>
+                <span class="del-x" onclick="delP(${i})">✕</span>
+            </td>
+        </tr>`).join('');
+    
+    const cats = [...new Set(products.map(p => p.cat))];
+    document.getElementById('cat-list-data').innerHTML = cats.map(c => `<option value="${c}">`).join('');
 }
+
+// 執行儲存功能
+function saveAdmin() {
+    db.ref("products").set(products).then(() => {
+        alert("已成功更新品項規格！💙");
+    }).catch(e => alert("存檔失敗，請檢查網路連接"));
+}
+
 function quickAdd() {
     const cat = document.getElementById('new-p-cat').value;
     const name = document.getElementById('new-p-name').value;
@@ -249,7 +289,9 @@ function quickAdd() {
     products.push({ id: Date.now(), cat, name, price, stock: stock || 0 });
     db.ref("products").set(products);
 }
+
 function delP(i) { if(confirm("刪除此品項？")) { products.splice(i,1); db.ref("products").set(products); } }
+
 function renderHistory(data) {
     const list = document.getElementById('history-list');
     list.innerHTML = Object.keys(data).reverse().map(key => {
@@ -257,8 +299,11 @@ function renderHistory(data) {
         return `<div class="history-card"><span class="history-del-btn" onclick="delHistory('${key}')">✕ 刪除</span><strong>👤 ${o.note}</strong> | <small>${o.time}</small><br>${o.items.map(i => `<span class="order-tag">${i.name}x${i.qty}</span>`).join('')}<br><strong>總額: $${o.total}</strong></div>`;
     }).join('');
 }
+
 function delHistory(k) { if(confirm("刪除此筆登記？")) db.ref("history").child(k).remove(); }
+
 function togglePanel(id) { const p = document.getElementById(id); p.style.display = (p.style.display === 'flex') ? 'none' : 'flex'; }
+
 function importExcel(e) {
     const reader = new FileReader();
     reader.onload = (e) => {
