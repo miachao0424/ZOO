@@ -27,7 +27,6 @@
         <h1 class="text-2xl md:text-3xl font-bold tracking-wider text-slate-800 mb-2">富士山下迷妹跑腿中</h1>
         <p class="text-sm md:text-base text-slate-600">出貨進度與預計出貨日查詢</p>
         
-        <!-- 管理後台開關按鈕 -->
         <button onclick="toggleAdminPanel()" class="absolute top-6 right-4 text-xs bg-white/80 hover:bg-white text-slate-600 border border-sky-200 px-3 py-1.5 rounded-xl shadow-sm transition">
             ⚙️ 後台管理
         </button>
@@ -38,7 +37,7 @@
         <!-- 全局批次公告卡片 -->
         <div id="batchNoticeCard" class="bg-white/80 backdrop-blur border border-sky-200 rounded-2xl p-4 shadow-sm text-center">
             <span class="text-xs font-bold bg-sky-100 text-sky-800 px-2.5 py-1 rounded-full mb-1 inline-block">📢 公告</span>
-            <p id="batchNoticeText" class="text-sm text-slate-700 font-medium mt-1.5">每日依排單順序出貨中 🚚</p>
+            <p id="batchNoticeText" class="text-sm text-slate-700 font-medium mt-1.5">每日依排單進度努力出貨中 🚚</p>
         </div>
 
         <!-- 前台：買家查詢區 -->
@@ -101,7 +100,6 @@
             <div>
                 <h3 class="text-sm font-bold text-slate-700 mb-3">📋 買家順序與預計出貨日管理</h3>
                 <div id="adminDataList" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
-                    <!-- 動態生成管理列表 -->
                 </div>
             </div>
         </div>
@@ -114,16 +112,16 @@
 
     <script>
         const defaultShippingData = [
+            { name: "毛毛", shipDate: "", estDate: "09/13 (第一批)", quantity: 20, method: "黑貓", remark: "有鏡子" },
             { name: "琪琪", shipDate: "2026-09-13", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "魚書瑤", shipDate: "2026-09-13", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "janice", shipDate: "2026-09-13", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "janice", shipDate: "", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "魚書瑤", shipDate: "", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "moon", shipDate: "2026-09-13", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "阿尼", shipDate: "", estDate: "09/15 - 09/16", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "哩哩", shipDate: "", estDate: "09/15 - 09/16", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "iris", shipDate: "", estDate: "09/15 - 09/16", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "欣欣", shipDate: "", estDate: "09/15 - 09/16", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "亮亮", shipDate: "", estDate: "09/16 - 09/17", quantity: 20, method: "黑貓", remark: "有鏡子" },
-            { name: "毛毛", shipDate: "", estDate: "09/16 - 09/17", quantity: 20, method: "黑貓", remark: "有鏡子" },
             { name: "胡", shipDate: "", estDate: "09/16 - 09/17", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "佳佳", shipDate: "", estDate: "09/16 - 09/17", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "sherry", shipDate: "", estDate: "09/17 - 09/18", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
@@ -140,7 +138,7 @@
             { name: "Yi-Xuan Li（怡萱）", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "Valerie 崎妤", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "Ina", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "Lisa yu", shipDate: "", estDate: "09/19 - 09/20 (預計月底前完成)", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
+            { name: "Lisa yu", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
             { name: "chichi", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "同一樓", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "沈丸子", shipDate: "", estDate: "09/20 寄出", quantity: 20, method: "7-11賣貨便", remark: "小旭" },
@@ -149,19 +147,28 @@
             { name: "野口🐶", shipDate: "", estDate: "09/20 寄出", quantity: 20, method: "7-11賣貨便", remark: "海周" }
         ];
 
+        // 名字去隱私遮罩函數
+        function maskName(str) {
+            if (!str) return '';
+            const chars = Array.from(str);
+            if (chars.length === 1) return chars[0] + '*';
+            if (chars.length === 2) return chars[0] + '*';
+            return chars[0] + '*'.repeat(chars.length - 2) + chars[chars.length - 1];
+        }
+
         function getData() {
-            const saved = localStorage.getItem('fuji_shipping_list_v3');
+            const saved = localStorage.getItem('fuji_shipping_list_v4');
             if (saved) return JSON.parse(saved);
-            localStorage.setItem('fuji_shipping_list_v3', JSON.stringify(defaultShippingData));
+            localStorage.setItem('fuji_shipping_list_v4', JSON.stringify(defaultShippingData));
             return defaultShippingData;
         }
 
         function saveData(data) {
-            localStorage.setItem('fuji_shipping_list_v3', JSON.stringify(data));
+            localStorage.setItem('fuji_shipping_list_v4', JSON.stringify(data));
         }
 
         function getNotice() {
-            return localStorage.getItem('fuji_shipping_notice') || "每日依排單順序全力出貨中 🚚";
+            return localStorage.getItem('fuji_shipping_notice') || "預計本週全數完成寄出！每日依排單進度全力打包中 🚚";
         }
 
         function initNotice() {
@@ -223,12 +230,50 @@
 
             results.forEach(item => {
                 const isShipped = item.shipDate !== "";
-                
+                const estDisplay = item.estDate ? item.estDate : "陸續寄出中";
+
+                // 自動抓取同批買家
+                const sameBatchGroup = currentData.filter(d => d.estDate && d.estDate === item.estDate);
+                const sameBatchCount = sameBatchGroup.length;
+                const shippedCount = sameBatchGroup.filter(d => d.shipDate !== "").length;
+
+                const batchMembersHtml = sameBatchGroup.map(m => {
+                    const isSelf = m.name.toLowerCase() === item.name.toLowerCase();
+                    const isMShipped = m.shipDate !== "";
+                    
+                    let bgClass = "bg-slate-100 text-slate-600 border-slate-200";
+                    let icon = "";
+                    
+                    if (isMShipped) {
+                        bgClass = "bg-emerald-50 text-emerald-700 border-emerald-200";
+                        icon = "✓ ";
+                    }
+                    if (isSelf) {
+                        bgClass = "bg-sky-500 text-white font-bold border-sky-600 shadow-sm";
+                    }
+
+                    const displayName = isSelf ? item.name : maskName(m.name);
+
+                    return `<span class="inline-flex items-center text-xs px-2.5 py-1 rounded-lg border ${bgClass}">
+                        ${icon}${displayName}${isSelf ? ' (您)' : ''}
+                    </span>`;
+                }).join(' ');
+
+                const batchSection = sameBatchCount > 0 ? `
+                    <div class="mt-4 pt-3 border-t border-sky-100 space-y-2">
+                        <div class="flex justify-between items-center text-xs text-slate-500">
+                            <span class="font-bold text-slate-700">👥 同批出貨 (共 ${sameBatchCount} 人)</span>
+                            <span class="text-emerald-600 font-medium">已寄出 ${shippedCount} / ${sameBatchCount} 人</span>
+                        </div>
+                        <div class="flex flex-wrap gap-1.5 pt-1">
+                            ${batchMembersHtml}
+                        </div>
+                    </div>
+                ` : '';
+
                 const statusBadge = isShipped 
                     ? `<span class="bg-emerald-100 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-medium">✅ 已於 ${item.shipDate} 寄出</span>`
                     : `<span class="bg-amber-100 text-amber-700 text-xs px-3 py-1.5 rounded-full font-medium">📦 出貨準備中 (第 ${item.originalRank} 順位)</span>`;
-                
-                const estDisplay = item.estDate ? item.estDate : "陸續寄出中";
 
                 const progressStep = isShipped
                     ? `<div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3.5 text-xs text-emerald-800 flex justify-between items-center">
@@ -260,6 +305,7 @@
                     </div>
                     ${progressStep}
                     ${remarkSection}
+                    ${batchSection}
                 `;
                 container.appendChild(card);
             });
@@ -385,7 +431,7 @@
 
         function resetData() {
             if (confirm("這將會清除所有調整，恢復為預設名單，確定嗎？")) {
-                localStorage.setItem('fuji_shipping_list_v3', JSON.stringify(defaultShippingData));
+                localStorage.setItem('fuji_shipping_list_v4', JSON.stringify(defaultShippingData));
                 renderAdminList();
                 alert("已恢復預設狀態！");
             }
