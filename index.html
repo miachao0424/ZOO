@@ -25,7 +25,7 @@
     <!-- 頁頭 -->
     <header class="w-full py-8 px-4 text-center relative max-w-2xl mx-auto">
         <h1 class="text-2xl md:text-3xl font-bold tracking-wider text-slate-800 mb-2">富士山下迷妹跑腿中</h1>
-        <p class="text-sm md:text-base text-slate-600">出貨進度查詢</p>
+        <p class="text-sm md:text-base text-slate-600">出貨進度與順序查詢</p>
         
         <!-- 管理後台開關按鈕 -->
         <button onclick="toggleAdminPanel()" class="absolute top-6 right-4 text-xs bg-white/80 hover:bg-white text-slate-600 border border-sky-200 px-3 py-1.5 rounded-xl shadow-sm transition">
@@ -51,7 +51,7 @@
         <!-- 查詢結果顯示區 -->
         <div id="resultContainer" class="space-y-4">
             <div class="text-center py-10 text-slate-400 bg-white/50 rounded-2xl border border-dashed border-sky-200">
-                請於上方輸入名字開始查詢您的進度
+                請於上方輸入名字開始查詢您的進度與順序
             </div>
         </div>
 
@@ -60,7 +60,7 @@
             <div class="flex justify-between items-center border-b pb-3">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                     🛠️ 後台控制台 
-                    <span class="text-xs font-normal text-slate-400">(資料已自動儲存)</span>
+                    <span class="text-xs font-normal text-slate-400">(順位可自由調整)</span>
                 </h2>
                 <button onclick="resetData()" class="text-xs text-red-400 hover:text-red-600 underline">重置所有資料</button>
             </div>
@@ -83,9 +83,9 @@
                 </button>
             </form>
 
-            <!-- 資料總覽與狀態調整 -->
+            <!-- 資料總覽與順序/狀態調整 -->
             <div>
-                <h3 class="text-sm font-bold text-slate-700 mb-3">📋 所有買家狀態調整</h3>
+                <h3 class="text-sm font-bold text-slate-700 mb-3">📋 買家順序與狀態管理 (可點按鈕調整順序)</h3>
                 <div id="adminDataList" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                     <!-- 動態生成管理列表 -->
                 </div>
@@ -99,7 +99,7 @@
     </footer>
 
     <script>
-        // 原始預設 33 筆買家資料
+        // 原始預設 33 筆買家資料 (照預設順序)
         const defaultShippingData = [
             { name: "琪琪", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "魚書瑤", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
@@ -136,26 +136,24 @@
             { name: "野口🐶", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "海周" }
         ];
 
-        // 讀取/儲存 LocalStorage
         function getData() {
-            const saved = localStorage.getItem('fuji_shipping_list');
+            const saved = localStorage.getItem('fuji_shipping_list_v2');
             if (saved) {
                 return JSON.parse(saved);
             }
-            localStorage.setItem('fuji_shipping_list', JSON.stringify(defaultShippingData));
+            localStorage.setItem('fuji_shipping_list_v2', JSON.stringify(defaultShippingData));
             return defaultShippingData;
         }
 
         function saveData(data) {
-            localStorage.setItem('fuji_shipping_list', JSON.stringify(data));
+            localStorage.setItem('fuji_shipping_list_v2', JSON.stringify(data));
         }
 
-        // 開啟/關閉後台 (附密碼)
         function toggleAdminPanel() {
             const panel = document.getElementById('adminPanel');
             if (panel.classList.contains('hidden')) {
                 const pwd = prompt("請輸入管理員密碼：", "");
-                if (pwd === "1239") { // 您可以在這裡修改您習慣的後台密碼
+                if (pwd === "1239") {
                     panel.classList.remove('hidden');
                     renderAdminList();
                     panel.scrollIntoView({ behavior: 'smooth' });
@@ -167,7 +165,6 @@
             }
         }
 
-        // 查詢功能
         function searchData() {
             const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
             const container = document.getElementById('resultContainer');
@@ -179,7 +176,19 @@
             }
 
             const currentData = getData();
-            const results = currentData.filter(item => item.name.toLowerCase().includes(keyword));
+            // 計算前面未寄出人數
+            let pendingCount = 0;
+            const indexedData = currentData.map((item, index) => {
+                const isShipped = item.shipDate !== "";
+                if (!isShipped) pendingCount++;
+                return {
+                    ...item,
+                    originalRank: index + 1,
+                    waitingBefore: isShipped ? 0 : pendingCount - 1
+                };
+            });
+
+            const results = indexedData.filter(item => item.name.toLowerCase().includes(keyword));
 
             if (results.length === 0) {
                 container.innerHTML = '<div class="bg-white border border-slate-200 text-slate-500 p-6 rounded-2xl text-center shadow-sm">找不到符合的登記資料，請確認名字是否有誤！</div>';
@@ -188,29 +197,43 @@
 
             results.forEach(item => {
                 const isShipped = item.shipDate !== "";
-                const statusBadge = isShipped 
-                    ? `<span class="bg-emerald-100 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-medium">已於 ${item.shipDate} 寄出</span>`
-                    : `<span class="bg-amber-100 text-amber-700 text-xs px-3 py-1.5 rounded-full font-medium">出貨準備中</span>`;
                 
-                const remarkSection = item.remark ? `<div class="mt-2 text-xs text-sky-600 bg-sky-50 px-3 py-2 rounded-lg">備註：${item.remark}</div>` : '';
+                const statusBadge = isShipped 
+                    ? `<span class="bg-emerald-100 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-medium">✅ 已於 ${item.shipDate} 寄出</span>`
+                    : `<span class="bg-amber-100 text-amber-700 text-xs px-3 py-1.5 rounded-full font-medium">📦 排單備貨中 (第 ${item.originalRank} 順位)</span>`;
+                
+                const progressStep = isShipped
+                    ? `<div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs text-emerald-800 flex justify-between items-center">
+                        <span>進度：包裹已寄出</span>
+                        <span class="font-bold">100%</span>
+                       </div>`
+                    : `<div class="bg-sky-50 border border-sky-100 rounded-xl p-3 text-xs text-sky-800 space-y-1">
+                        <div class="flex justify-between items-center font-bold">
+                            <span>前面剩餘：${item.waitingBefore} 包打包中</span>
+                            <span>順位：第 ${item.originalRank} 位</span>
+                        </div>
+                        <p class="text-slate-500 font-normal">全力打包中🚚</p>
+                       </div>`;
+
+                const remarkSection = item.remark ? `<div class="text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">備註：${item.remark}</div>` : '';
 
                 const card = document.createElement('div');
-                card.className = "bg-white border border-sky-100 rounded-2xl p-6 shadow-sm space-y-3";
+                card.className = "bg-white border border-sky-100 rounded-2xl p-6 shadow-sm space-y-4";
                 card.innerHTML = `
                     <div class="flex justify-between items-center border-b border-slate-100 pb-3">
-                        <span class="font-bold text-lg text-slate-800">${item.name}</span>
+                        <div>
+                            <span class="font-bold text-lg text-slate-800">${item.name}</span>
+                            <span class="text-xs text-slate-400 block">${item.method}</span>
+                        </div>
                         ${statusBadge}
                     </div>
-                    <div class="grid grid-cols-2 gap-2 text-sm text-slate-600">
-                        <div><span class="text-slate-400">寄送方式：</span> ${item.method}</div>
-                    </div>
+                    ${progressStep}
                     ${remarkSection}
                 `;
                 container.appendChild(card);
             });
         }
 
-        // 後台管理：渲染與切換狀態
         function renderAdminList() {
             const data = getData();
             const container = document.getElementById('adminDataList');
@@ -218,35 +241,67 @@
 
             data.forEach((item, index) => {
                 const row = document.createElement('div');
-                row.className = "bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm";
+                row.className = "bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col md:flex-row justify-between items-start md:items-center gap-2 text-sm";
                 
                 const isShipped = item.shipDate !== "";
 
                 row.innerHTML = `
-                    <div class="space-y-1">
-                        <div class="font-bold text-slate-800 flex items-center gap-2">
-                            ${item.name}
-                            <span class="text-xs font-normal text-slate-400">(${item.method})</span>
+                    <div class="flex items-center gap-2 w-full md:w-auto">
+                        <span class="font-mono font-bold text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-md">#${index + 1}</span>
+                        <!-- 調整順序按鈕 -->
+                        <div class="flex gap-1">
+                            <button onclick="moveItem(${index}, -1)" ${index === 0 ? 'disabled class="opacity-30"' : ''} class="px-1.5 py-0.5 bg-white border rounded hover:bg-slate-100 text-xs">▲</button>
+                            <button onclick="moveItem(${index}, 1)" ${index === data.length - 1 ? 'disabled class="opacity-30"' : ''} class="px-1.5 py-0.5 bg-white border rounded hover:bg-slate-100 text-xs">▼</button>
                         </div>
-                        ${item.remark ? `<div class="text-xs text-sky-600">備註：${item.remark}</div>` : ''}
+                        <span class="font-bold text-slate-800">${item.name}</span>
+                        <span class="text-xs text-slate-400">(${item.method})</span>
+                        ${item.remark ? `<span class="text-xs text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded">${item.remark}</span>` : ''}
                     </div>
-                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                    
+                    <div class="flex items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0">
+                        <button onclick="editName(${index})" class="text-xs text-sky-600 hover:text-sky-800 underline">✏️改名</button>
                         <input type="date" value="${item.shipDate}" onchange="updateDate(${index}, this.value)" 
                             class="text-xs p-1.5 border rounded-lg bg-white border-slate-300">
                         <button onclick="toggleStatus(${index})" 
                             class="text-xs px-3 py-1.5 rounded-lg font-medium transition ${isShipped ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-300 text-slate-700 hover:bg-slate-400'}">
                             ${isShipped ? '已寄出' : '未寄出'}
                         </button>
-                        <button onclick="deleteItem(${index})" class="text-xs text-red-500 hover:text-red-700 p-1 font-bold">
-                            ✕
-                        </button>
+                        <button onclick="deleteItem(${index})" class="text-xs text-red-500 hover:text-red-700 p-1 font-bold">✕</button>
                     </div>
                 `;
                 container.appendChild(row);
             });
         }
 
-        // 快捷按鈕切換出貨狀態
+        // 上下移動順序
+        function moveItem(index, direction) {
+            const data = getData();
+            const targetIndex = index + direction;
+            if (targetIndex < 0 || targetIndex >= data.length) return;
+            
+            const temp = data[index];
+            data[index] = data[targetIndex];
+            data[targetIndex] = temp;
+            
+            saveData(data);
+            renderAdminList();
+            const currentSearch = document.getElementById('searchInput').value.trim();
+            if (currentSearch) searchData();
+        }
+
+        // 修改買家名字
+        function editName(index) {
+            const data = getData();
+            const newName = prompt("請輸入新的 LINE 名字：", data[index].name);
+            if (newName && newName.trim() !== "") {
+                data[index].name = newName.trim();
+                saveData(data);
+                renderAdminList();
+                const currentSearch = document.getElementById('searchInput').value.trim();
+                if (currentSearch) searchData();
+            }
+        }
+
         function toggleStatus(index) {
             const data = getData();
             if (data[index].shipDate) {
@@ -257,12 +312,10 @@
             }
             saveData(data);
             renderAdminList();
-            // 如果剛好有查詢結果，同步更新查詢結果
             const currentSearch = document.getElementById('searchInput').value.trim();
             if (currentSearch) searchData();
         }
 
-        // 手動修改日期
         function updateDate(index, newDate) {
             const data = getData();
             data[index].shipDate = newDate;
@@ -272,7 +325,6 @@
             if (currentSearch) searchData();
         }
 
-        // 新增項目
         function addNewItem(e) {
             e.preventDefault();
             const name = document.getElementById('newName').value.trim();
@@ -283,19 +335,17 @@
             if (!name) return;
 
             const data = getData();
-            data.unshift({ name, method, shipDate, remark, quantity: 20 });
+            data.push({ name, method, shipDate, remark, quantity: 20 });
             saveData(data);
 
-            // 清空表單
             document.getElementById('newName').value = '';
             document.getElementById('newShipDate').value = '';
             document.getElementById('newRemark').value = '';
 
             renderAdminList();
-            alert(`已成功新增 ${name} 的資料！`);
+            alert(`已成功新增 ${name} 至列表最後順位！`);
         }
 
-        // 刪除項目
         function deleteItem(index) {
             const data = getData();
             if (confirm(`確定要刪除「${data[index].name}」這筆資料嗎？`)) {
@@ -307,12 +357,11 @@
             }
         }
 
-        // 重置為初始資料
         function resetData() {
-            if (confirm("這將會清除所有後來修改與新增的資料，恢復為預設狀態，確定嗎？")) {
-                localStorage.setItem('fuji_shipping_list', JSON.stringify(defaultShippingData));
+            if (confirm("這將會清除所有調整，恢復為預設 33 筆名單，確定嗎？")) {
+                localStorage.setItem('fuji_shipping_list_v2', JSON.stringify(defaultShippingData));
                 renderAdminList();
-                alert("已恢復為預設資料！");
+                alert("已恢復預設狀態！");
             }
         }
 
