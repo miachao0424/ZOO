@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>富士山下迷妹跑腿中- 出貨進度查詢</title>
+    <title>富士山下迷妹跑腿中 - 出貨進度查詢與管理</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
         tailwind.config = {
@@ -21,15 +21,25 @@
     </script>
 </head>
 <body class="bg-babyblue min-h-screen flex flex-col justify-between text-slate-700">
-    <header class="w-full py-8 px-4 text-center">
+
+    <!-- 頁頭 -->
+    <header class="w-full py-8 px-4 text-center relative max-w-2xl mx-auto">
         <h1 class="text-2xl md:text-3xl font-bold tracking-wider text-slate-800 mb-2">富士山下迷妹跑腿中</h1>
-        <p class="text-sm md:text-base text-slate-600">進度查詢</p>
+        <p class="text-sm md:text-base text-slate-600">出貨進度查詢</p>
+        
+        <!-- 管理後台開關按鈕 -->
+        <button onclick="toggleAdminPanel()" class="absolute top-6 right-4 text-xs bg-white/80 hover:bg-white text-slate-600 border border-sky-200 px-3 py-1.5 rounded-xl shadow-sm transition">
+            ⚙️ 後台管理
+        </button>
     </header>
-    <main class="container mx-auto px-4 max-w-2xl mb-auto">
-        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8 mb-6 border border-sky-100">
+
+    <main class="container mx-auto px-4 max-w-2xl mb-auto space-y-6">
+
+        <!-- 前台：買家查詢區 -->
+        <div class="bg-white rounded-2xl shadow-md p-6 md:p-8 border border-sky-100">
             <label for="searchInput" class="block text-sm font-medium text-slate-600 mb-2">請輸入您的 LINE 名字：</label>
             <div class="flex gap-2">
-                <input type="text" id="searchInput" placeholder="" 
+                <input type="text" id="searchInput" placeholder="輸入名字..." 
                     class="flex-1 px-4 py-3 rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-softblue text-slate-700 bg-cardbg">
                 <button onclick="searchData()" 
                     class="bg-deepblue hover:bg-sky-600 text-white px-6 py-3 rounded-xl font-medium transition shadow-sm">
@@ -37,17 +47,60 @@
                 </button>
             </div>
         </div>
+
+        <!-- 查詢結果顯示區 -->
         <div id="resultContainer" class="space-y-4">
             <div class="text-center py-10 text-slate-400 bg-white/50 rounded-2xl border border-dashed border-sky-200">
                 請於上方輸入名字開始查詢您的進度
             </div>
         </div>
+
+        <!-- 後台：園長專屬管理區 (預設隱藏) -->
+        <div id="adminPanel" class="hidden bg-white rounded-2xl shadow-xl p-6 border-2 border-sky-300 space-y-6">
+            <div class="flex justify-between items-center border-b pb-3">
+                <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
+                    🛠️ 後台控制台 
+                    <span class="text-xs font-normal text-slate-400">(資料已自動儲存)</span>
+                </h2>
+                <button onclick="resetData()" class="text-xs text-red-400 hover:text-red-600 underline">重置所有資料</button>
+            </div>
+
+            <!-- 新增買家資料區 -->
+            <form onsubmit="addNewItem(event)" class="bg-sky-50/60 p-4 rounded-xl space-y-3 border border-sky-100">
+                <h3 class="text-sm font-bold text-slate-700">➕ 新增出貨登記</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-sm">
+                    <input type="text" id="newName" placeholder="LINE 名字 *" required class="p-2.5 rounded-lg border border-slate-200">
+                    <select id="newMethod" class="p-2.5 rounded-lg border border-slate-200 bg-white">
+                        <option value="7-11賣貨便">7-11賣貨便</option>
+                        <option value="黑貓">黑貓</option>
+                        <option value="面交">面交</option>
+                    </select>
+                    <input type="date" id="newShipDate" class="p-2.5 rounded-lg border border-slate-200 bg-white">
+                    <input type="text" id="newRemark" placeholder="備註 (如：內退運費、有鏡子)" class="p-2.5 rounded-lg border border-slate-200">
+                </div>
+                <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-medium text-sm transition shadow-sm">
+                    + 確認新增資料
+                </button>
+            </form>
+
+            <!-- 資料總覽與狀態調整 -->
+            <div>
+                <h3 class="text-sm font-bold text-slate-700 mb-3">📋 所有買家狀態調整</h3>
+                <div id="adminDataList" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
+                    <!-- 動態生成管理列表 -->
+                </div>
+            </div>
+        </div>
+
     </main>
+
     <footer class="w-full py-6 text-center text-xs text-slate-500">
         © 富士山下迷妹跑腿中 All Rights Reserved.
     </footer>
+
     <script>
-        const shippingData = [
+        // 原始預設 33 筆買家資料
+        const defaultShippingData = [
             { name: "琪琪", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "魚書瑤", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
             { name: "janice", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
@@ -82,28 +135,65 @@
             { name: "阿茹", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "小旭" },
             { name: "野口🐶", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "海周" }
         ];
-        document.getElementById('searchInput').addEventListener('keypress', function (e) {
-            if (e.key === 'Enter') { searchData(); }
-        });
+
+        // 讀取/儲存 LocalStorage
+        function getData() {
+            const saved = localStorage.getItem('fuji_shipping_list');
+            if (saved) {
+                return JSON.parse(saved);
+            }
+            localStorage.setItem('fuji_shipping_list', JSON.stringify(defaultShippingData));
+            return defaultShippingData;
+        }
+
+        function saveData(data) {
+            localStorage.setItem('fuji_shipping_list', JSON.stringify(data));
+        }
+
+        // 開啟/關閉後台 (附密碼)
+        function toggleAdminPanel() {
+            const panel = document.getElementById('adminPanel');
+            if (panel.classList.contains('hidden')) {
+                const pwd = prompt("請輸入管理員密碼：", "");
+                if (pwd === "1239") { // 您可以在這裡修改您習慣的後台密碼
+                    panel.classList.remove('hidden');
+                    renderAdminList();
+                    panel.scrollIntoView({ behavior: 'smooth' });
+                } else if (pwd !== null) {
+                    alert("密碼錯誤！");
+                }
+            } else {
+                panel.classList.add('hidden');
+            }
+        }
+
+        // 查詢功能
         function searchData() {
             const keyword = document.getElementById('searchInput').value.trim().toLowerCase();
             const container = document.getElementById('resultContainer');
             container.innerHTML = '';
+
             if (!keyword) {
                 container.innerHTML = '<div class="bg-amber-50 border border-amber-200 text-amber-700 px-4 py-3 rounded-xl text-center text-sm">請輸入要查詢的名字喔！</div>';
                 return;
             }
-            const results = shippingData.filter(item => item.name.toLowerCase().includes(keyword));
+
+            const currentData = getData();
+            const results = currentData.filter(item => item.name.toLowerCase().includes(keyword));
+
             if (results.length === 0) {
                 container.innerHTML = '<div class="bg-white border border-slate-200 text-slate-500 p-6 rounded-2xl text-center shadow-sm">找不到符合的登記資料，請確認名字是否有誤！</div>';
                 return;
             }
+
             results.forEach(item => {
                 const isShipped = item.shipDate !== "";
                 const statusBadge = isShipped 
                     ? `<span class="bg-emerald-100 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-medium">已於 ${item.shipDate} 寄出</span>`
                     : `<span class="bg-amber-100 text-amber-700 text-xs px-3 py-1.5 rounded-full font-medium">備貨 / 預留中</span>`;
+                
                 const remarkSection = item.remark ? `<div class="mt-2 text-xs text-sky-600 bg-sky-50 px-3 py-2 rounded-lg">備註：${item.remark}</div>` : '';
+
                 const card = document.createElement('div');
                 card.className = "bg-white border border-sky-100 rounded-2xl p-6 shadow-sm space-y-3";
                 card.innerHTML = `
@@ -119,6 +209,116 @@
                 container.appendChild(card);
             });
         }
+
+        // 後台管理：渲染與切換狀態
+        function renderAdminList() {
+            const data = getData();
+            const container = document.getElementById('adminDataList');
+            container.innerHTML = '';
+
+            data.forEach((item, index) => {
+                const row = document.createElement('div');
+                row.className = "bg-slate-50 border border-slate-200 rounded-xl p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-sm";
+                
+                const isShipped = item.shipDate !== "";
+
+                row.innerHTML = `
+                    <div class="space-y-1">
+                        <div class="font-bold text-slate-800 flex items-center gap-2">
+                            ${item.name}
+                            <span class="text-xs font-normal text-slate-400">(${item.method})</span>
+                        </div>
+                        ${item.remark ? `<div class="text-xs text-sky-600">備註：${item.remark}</div>` : ''}
+                    </div>
+                    <div class="flex items-center gap-2 w-full sm:w-auto justify-end">
+                        <input type="date" value="${item.shipDate}" onchange="updateDate(${index}, this.value)" 
+                            class="text-xs p-1.5 border rounded-lg bg-white border-slate-300">
+                        <button onclick="toggleStatus(${index})" 
+                            class="text-xs px-3 py-1.5 rounded-lg font-medium transition ${isShipped ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-300 text-slate-700 hover:bg-slate-400'}">
+                            ${isShipped ? '已寄出' : '未寄出'}
+                        </button>
+                        <button onclick="deleteItem(${index})" class="text-xs text-red-500 hover:text-red-700 p-1 font-bold">
+                            ✕
+                        </button>
+                    </div>
+                `;
+                container.appendChild(row);
+            });
+        }
+
+        // 快捷按鈕切換出貨狀態
+        function toggleStatus(index) {
+            const data = getData();
+            if (data[index].shipDate) {
+                data[index].shipDate = "";
+            } else {
+                const today = new Date().toISOString().split('T')[0];
+                data[index].shipDate = today;
+            }
+            saveData(data);
+            renderAdminList();
+            // 如果剛好有查詢結果，同步更新查詢結果
+            const currentSearch = document.getElementById('searchInput').value.trim();
+            if (currentSearch) searchData();
+        }
+
+        // 手動修改日期
+        function updateDate(index, newDate) {
+            const data = getData();
+            data[index].shipDate = newDate;
+            saveData(data);
+            renderAdminList();
+            const currentSearch = document.getElementById('searchInput').value.trim();
+            if (currentSearch) searchData();
+        }
+
+        // 新增項目
+        function addNewItem(e) {
+            e.preventDefault();
+            const name = document.getElementById('newName').value.trim();
+            const method = document.getElementById('newMethod').value;
+            const shipDate = document.getElementById('newShipDate').value;
+            const remark = document.getElementById('newRemark').value.trim();
+
+            if (!name) return;
+
+            const data = getData();
+            data.unshift({ name, method, shipDate, remark, quantity: 20 });
+            saveData(data);
+
+            // 清空表單
+            document.getElementById('newName').value = '';
+            document.getElementById('newShipDate').value = '';
+            document.getElementById('newRemark').value = '';
+
+            renderAdminList();
+            alert(`已成功新增 ${name} 的資料！`);
+        }
+
+        // 刪除項目
+        function deleteItem(index) {
+            const data = getData();
+            if (confirm(`確定要刪除「${data[index].name}」這筆資料嗎？`)) {
+                data.splice(index, 1);
+                saveData(data);
+                renderAdminList();
+                const currentSearch = document.getElementById('searchInput').value.trim();
+                if (currentSearch) searchData();
+            }
+        }
+
+        // 重置為初始資料
+        function resetData() {
+            if (confirm("這將會清除所有後來修改與新增的資料，恢復為預設狀態，確定嗎？")) {
+                localStorage.setItem('fuji_shipping_list', JSON.stringify(defaultShippingData));
+                renderAdminList();
+                alert("已恢復為預設資料！");
+            }
+        }
+
+        document.getElementById('searchInput').addEventListener('keypress', function (e) {
+            if (e.key === 'Enter') { searchData(); }
+        });
     </script>
 </body>
 </html>
