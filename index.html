@@ -200,7 +200,7 @@
                 
                 const statusBadge = isShipped 
                     ? `<span class="bg-emerald-100 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-medium">✅ 已於 ${item.shipDate} 寄出</span>`
-                    : `<span class="bg-amber-100 text-amber-700 text-xs px-3 py-1.5 rounded-full font-medium">📦 排單備貨中 (第 ${item.originalRank} 順位)</span>`;
+                    : `<span class="bg-amber-100 text-amber-700 text-xs px-3 py-1.5 rounded-full font-medium">📦 出貨準備中 (第 ${item.originalRank} 順位)</span>`;
                 
                 const progressStep = isShipped
                     ? `<div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs text-emerald-800 flex justify-between items-center">
