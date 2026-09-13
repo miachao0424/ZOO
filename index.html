@@ -25,7 +25,7 @@
     <!-- 頁頭 -->
     <header class="w-full py-8 px-4 text-center relative max-w-2xl mx-auto">
         <h1 class="text-2xl md:text-3xl font-bold tracking-wider text-slate-800 mb-2">富士山下迷妹跑腿中</h1>
-        <p class="text-sm md:text-base text-slate-600">出貨進度與順序查詢</p>
+        <p class="text-sm md:text-base text-slate-600">出貨進度與預計出貨日查詢</p>
         
         <!-- 管理後台開關按鈕 -->
         <button onclick="toggleAdminPanel()" class="absolute top-6 right-4 text-xs bg-white/80 hover:bg-white text-slate-600 border border-sky-200 px-3 py-1.5 rounded-xl shadow-sm transition">
@@ -34,6 +34,12 @@
     </header>
 
     <main class="container mx-auto px-4 max-w-2xl mb-auto space-y-6">
+
+        <!-- 全局批次公告卡片 -->
+        <div id="batchNoticeCard" class="bg-white/80 backdrop-blur border border-sky-200 rounded-2xl p-4 shadow-sm text-center">
+            <span class="text-xs font-bold bg-sky-100 text-sky-800 px-2.5 py-1 rounded-full mb-1 inline-block">📢 公告</span>
+            <p id="batchNoticeText" class="text-sm text-slate-700 font-medium mt-1.5">每日依排單順序出貨中 🚚</p>
+        </div>
 
         <!-- 前台：買家查詢區 -->
         <div class="bg-white rounded-2xl shadow-md p-6 md:p-8 border border-sky-100">
@@ -51,7 +57,7 @@
         <!-- 查詢結果顯示區 -->
         <div id="resultContainer" class="space-y-4">
             <div class="text-center py-10 text-slate-400 bg-white/50 rounded-2xl border border-dashed border-sky-200">
-                請於上方輸入名字開始查詢您的進度與順序
+                請於上方輸入名字開始查詢您的進度與預計出貨日
             </div>
         </div>
 
@@ -60,9 +66,17 @@
             <div class="flex justify-between items-center border-b pb-3">
                 <h2 class="text-xl font-bold text-slate-800 flex items-center gap-2">
                     🛠️ 後台控制台 
-                    <span class="text-xs font-normal text-slate-400">(順位可自由調整)</span>
                 </h2>
                 <button onclick="resetData()" class="text-xs text-red-400 hover:text-red-600 underline">重置所有資料</button>
+            </div>
+
+            <!-- 批次公告設定 -->
+            <div class="bg-amber-50/60 p-4 rounded-xl border border-amber-200 space-y-2">
+                <h3 class="text-sm font-bold text-amber-800">📢 頂部公告內容設定</h3>
+                <div class="flex gap-2">
+                    <input type="text" id="noticeInput" placeholder="例如：本週預計分三批出貨完畢！" class="flex-1 p-2 rounded-lg border border-amber-200 text-sm">
+                    <button onclick="saveNotice()" class="bg-amber-600 text-white px-4 py-2 rounded-lg text-sm hover:bg-amber-700 transition">儲存公告</button>
+                </div>
             </div>
 
             <!-- 新增買家資料區 -->
@@ -75,8 +89,8 @@
                         <option value="黑貓">黑貓</option>
                         <option value="面交">面交</option>
                     </select>
-                    <input type="date" id="newShipDate" class="p-2.5 rounded-lg border border-slate-200 bg-white">
-                    <input type="text" id="newRemark" placeholder="備註 (如：內退運費、有鏡子)" class="p-2.5 rounded-lg border border-slate-200">
+                    <input type="text" id="newEstDate" placeholder="預計出貨區間/日期 (如：09/16 - 09/17)" class="p-2.5 rounded-lg border border-slate-200 bg-white">
+                    <input type="text" id="newRemark" placeholder="備註 (如：內退運費)" class="p-2.5 rounded-lg border border-slate-200">
                 </div>
                 <button type="submit" class="w-full bg-emerald-600 hover:bg-emerald-700 text-white py-2.5 rounded-lg font-medium text-sm transition shadow-sm">
                     + 確認新增資料
@@ -85,7 +99,7 @@
 
             <!-- 資料總覽與順序/狀態調整 -->
             <div>
-                <h3 class="text-sm font-bold text-slate-700 mb-3">📋 買家順序與狀態管理 (可點按鈕調整順序)</h3>
+                <h3 class="text-sm font-bold text-slate-700 mb-3">📋 買家順序與預計出貨日管理</h3>
                 <div id="adminDataList" class="space-y-3 max-h-[500px] overflow-y-auto pr-1">
                     <!-- 動態生成管理列表 -->
                 </div>
@@ -99,54 +113,67 @@
     </footer>
 
     <script>
-        // 原始預設 33 筆買家資料 (照預設順序)
         const defaultShippingData = [
-            { name: "琪琪", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "魚書瑤", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "janice", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "moon", shipDate: "2026-09-13", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "阿尼", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "哩哩", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "iris", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "欣欣", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "亮亮", shipDate: "", quantity: 20, method: "黑貓", remark: "有鏡子" },
-            { name: "毛毛", shipDate: "", quantity: 20, method: "黑貓", remark: "有鏡子" },
-            { name: "胡", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "佳佳", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "sherry", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
-            { name: "15¨̮", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
-            { name: "Tiffany Sun", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "Louise🍎", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "Jennifer", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "宜蓁", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "魚‘👧🏻", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "宸宸", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "35", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "Ying", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "LIAN", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "Yi-Xuan Li（怡萱）", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "Valerie 崎妤", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "Ina", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "Lisa yu", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
-            { name: "chichi", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "同一樓", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "" },
-            { name: "沈丸子", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "小旭" },
-            { name: "佩✨ 𝓐𝓷𝓰𝓮𝓵𝓪🫧", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "小旭" },
-            { name: "阿茹", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "小旭" },
-            { name: "野口🐶", shipDate: "", quantity: 20, method: "7-11賣貨便", remark: "海周" }
+            { name: "琪琪", shipDate: "2026-09-13", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "魚書瑤", shipDate: "2026-09-13", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "janice", shipDate: "2026-09-13", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "moon", shipDate: "2026-09-13", estDate: "09/13 (第一批)", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "阿尼", shipDate: "", estDate: "09/15 - 09/16", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "哩哩", shipDate: "", estDate: "09/15 - 09/16", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "iris", shipDate: "", estDate: "09/15 - 09/16", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "欣欣", shipDate: "", estDate: "09/15 - 09/16", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "亮亮", shipDate: "", estDate: "09/16 - 09/17", quantity: 20, method: "黑貓", remark: "有鏡子" },
+            { name: "毛毛", shipDate: "", estDate: "09/16 - 09/17", quantity: 20, method: "黑貓", remark: "有鏡子" },
+            { name: "胡", shipDate: "", estDate: "09/16 - 09/17", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "佳佳", shipDate: "", estDate: "09/16 - 09/17", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "sherry", shipDate: "", estDate: "09/17 - 09/18", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
+            { name: "15¨̮", shipDate: "", estDate: "09/17 - 09/18", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
+            { name: "Tiffany Sun", shipDate: "", estDate: "09/17 - 09/18", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "Louise🍎", shipDate: "", estDate: "09/17 - 09/18", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "Jennifer", shipDate: "", estDate: "09/17 - 09/18", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "宜蓁", shipDate: "", estDate: "09/18 - 09/19", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "魚‘👧🏻", shipDate: "", estDate: "09/18 - 09/19", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "宸宸", shipDate: "", estDate: "09/18 - 09/19", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "35", shipDate: "", estDate: "09/18 - 09/19", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "Ying", shipDate: "", estDate: "09/18 - 09/19", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "LIAN", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "Yi-Xuan Li（怡萱）", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "Valerie 崎妤", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "Ina", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "Lisa yu", shipDate: "", estDate: "09/19 - 09/20 (預計月底前完成)", quantity: 20, method: "7-11賣貨便", remark: "內退運費" },
+            { name: "chichi", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "同一樓", shipDate: "", estDate: "09/19 - 09/20", quantity: 20, method: "7-11賣貨便", remark: "" },
+            { name: "沈丸子", shipDate: "", estDate: "09/20 寄出", quantity: 20, method: "7-11賣貨便", remark: "小旭" },
+            { name: "佩✨ 𝓐𝓷𝓰𝓮𝓵𝓪🫧", shipDate: "", estDate: "09/20 寄出", quantity: 20, method: "7-11賣貨便", remark: "小旭" },
+            { name: "阿茹", shipDate: "", estDate: "09/20 寄出", quantity: 20, method: "7-11賣貨便", remark: "小旭" },
+            { name: "野口🐶", shipDate: "", estDate: "09/20 寄出", quantity: 20, method: "7-11賣貨便", remark: "海周" }
         ];
 
         function getData() {
-            const saved = localStorage.getItem('fuji_shipping_list_v2');
-            if (saved) {
-                return JSON.parse(saved);
-            }
-            localStorage.setItem('fuji_shipping_list_v2', JSON.stringify(defaultShippingData));
+            const saved = localStorage.getItem('fuji_shipping_list_v3');
+            if (saved) return JSON.parse(saved);
+            localStorage.setItem('fuji_shipping_list_v3', JSON.stringify(defaultShippingData));
             return defaultShippingData;
         }
 
         function saveData(data) {
-            localStorage.setItem('fuji_shipping_list_v2', JSON.stringify(data));
+            localStorage.setItem('fuji_shipping_list_v3', JSON.stringify(data));
+        }
+
+        function getNotice() {
+            return localStorage.getItem('fuji_shipping_notice') || "每日依排單順序全力出貨中 🚚";
+        }
+
+        function initNotice() {
+            document.getElementById('batchNoticeText').innerText = getNotice();
+            document.getElementById('noticeInput').value = getNotice();
+        }
+
+        function saveNotice() {
+            const val = document.getElementById('noticeInput').value.trim();
+            localStorage.setItem('fuji_shipping_notice', val);
+            document.getElementById('batchNoticeText').innerText = val;
+            alert("公告內容已儲存！");
         }
 
         function toggleAdminPanel() {
@@ -176,7 +203,6 @@
             }
 
             const currentData = getData();
-            // 計算前面未寄出人數
             let pendingCount = 0;
             const indexedData = currentData.map((item, index) => {
                 const isShipped = item.shipDate !== "";
@@ -202,17 +228,22 @@
                     ? `<span class="bg-emerald-100 text-emerald-700 text-xs px-3 py-1.5 rounded-full font-medium">✅ 已於 ${item.shipDate} 寄出</span>`
                     : `<span class="bg-amber-100 text-amber-700 text-xs px-3 py-1.5 rounded-full font-medium">📦 出貨準備中 (第 ${item.originalRank} 順位)</span>`;
                 
+                const estDisplay = item.estDate ? item.estDate : "陸續寄出中";
+
                 const progressStep = isShipped
-                    ? `<div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3 text-xs text-emerald-800 flex justify-between items-center">
+                    ? `<div class="bg-emerald-50 border border-emerald-100 rounded-xl p-3.5 text-xs text-emerald-800 flex justify-between items-center">
                         <span>進度：包裹已寄出</span>
                         <span class="font-bold">100%</span>
                        </div>`
-                    : `<div class="bg-sky-50 border border-sky-100 rounded-xl p-3 text-xs text-sky-800 space-y-1">
-                        <div class="flex justify-between items-center font-bold">
-                            <span>前面剩餘：${item.waitingBefore} 包打包中</span>
-                            <span>順位：第 ${item.originalRank} 位</span>
+                    : `<div class="bg-sky-50 border border-sky-100 rounded-xl p-4 text-xs text-sky-900 space-y-2">
+                        <div class="flex justify-between items-center text-sm border-b border-sky-100 pb-2">
+                            <span class="text-slate-500">🗓️ 預計出貨日：</span>
+                            <span class="font-bold text-deepblue text-base">${estDisplay}</span>
                         </div>
-                        <p class="text-slate-500 font-normal">全力打包中🚚</p>
+                        <div class="flex justify-between items-center pt-1 text-xs text-slate-600">
+                            <span>前面剩餘：<strong class="text-slate-800">${item.waitingBefore} 包</strong> 打包中</span>
+                            <span>出貨順位：第 ${item.originalRank} 位</span>
+                        </div>
                        </div>`;
 
                 const remarkSection = item.remark ? `<div class="text-xs text-slate-500 bg-slate-50 px-3 py-2 rounded-lg">備註：${item.remark}</div>` : '';
@@ -246,22 +277,20 @@
                 const isShipped = item.shipDate !== "";
 
                 row.innerHTML = `
-                    <div class="flex items-center gap-2 w-full md:w-auto">
+                    <div class="flex items-center gap-2 w-full md:w-auto flex-wrap">
                         <span class="font-mono font-bold text-xs bg-sky-100 text-sky-700 px-2 py-1 rounded-md">#${index + 1}</span>
-                        <!-- 調整順序按鈕 -->
                         <div class="flex gap-1">
                             <button onclick="moveItem(${index}, -1)" ${index === 0 ? 'disabled class="opacity-30"' : ''} class="px-1.5 py-0.5 bg-white border rounded hover:bg-slate-100 text-xs">▲</button>
                             <button onclick="moveItem(${index}, 1)" ${index === data.length - 1 ? 'disabled class="opacity-30"' : ''} class="px-1.5 py-0.5 bg-white border rounded hover:bg-slate-100 text-xs">▼</button>
                         </div>
                         <span class="font-bold text-slate-800">${item.name}</span>
                         <span class="text-xs text-slate-400">(${item.method})</span>
-                        ${item.remark ? `<span class="text-xs text-sky-600 bg-sky-50 px-1.5 py-0.5 rounded">${item.remark}</span>` : ''}
                     </div>
                     
-                    <div class="flex items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0">
+                    <div class="flex items-center gap-2 w-full md:w-auto justify-end border-t md:border-t-0 pt-2 md:pt-0 flex-wrap">
+                        <input type="text" placeholder="預計日期 (如 09/16)" value="${item.estDate || ''}" onchange="updateEstDate(${index}, this.value)"
+                            class="text-xs p-1.5 border rounded-lg bg-white border-slate-300 w-32">
                         <button onclick="editName(${index})" class="text-xs text-sky-600 hover:text-sky-800 underline">✏️改名</button>
-                        <input type="date" value="${item.shipDate}" onchange="updateDate(${index}, this.value)" 
-                            class="text-xs p-1.5 border rounded-lg bg-white border-slate-300">
                         <button onclick="toggleStatus(${index})" 
                             class="text-xs px-3 py-1.5 rounded-lg font-medium transition ${isShipped ? 'bg-emerald-500 text-white hover:bg-emerald-600' : 'bg-slate-300 text-slate-700 hover:bg-slate-400'}">
                             ${isShipped ? '已寄出' : '未寄出'}
@@ -273,7 +302,6 @@
             });
         }
 
-        // 上下移動順序
         function moveItem(index, direction) {
             const data = getData();
             const targetIndex = index + direction;
@@ -289,7 +317,6 @@
             if (currentSearch) searchData();
         }
 
-        // 修改買家名字
         function editName(index) {
             const data = getData();
             const newName = prompt("請輸入新的 LINE 名字：", data[index].name);
@@ -300,6 +327,14 @@
                 const currentSearch = document.getElementById('searchInput').value.trim();
                 if (currentSearch) searchData();
             }
+        }
+
+        function updateEstDate(index, val) {
+            const data = getData();
+            data[index].estDate = val.trim();
+            saveData(data);
+            const currentSearch = document.getElementById('searchInput').value.trim();
+            if (currentSearch) searchData();
         }
 
         function toggleStatus(index) {
@@ -316,30 +351,21 @@
             if (currentSearch) searchData();
         }
 
-        function updateDate(index, newDate) {
-            const data = getData();
-            data[index].shipDate = newDate;
-            saveData(data);
-            renderAdminList();
-            const currentSearch = document.getElementById('searchInput').value.trim();
-            if (currentSearch) searchData();
-        }
-
         function addNewItem(e) {
             e.preventDefault();
             const name = document.getElementById('newName').value.trim();
             const method = document.getElementById('newMethod').value;
-            const shipDate = document.getElementById('newShipDate').value;
+            const estDate = document.getElementById('newEstDate').value.trim();
             const remark = document.getElementById('newRemark').value.trim();
 
             if (!name) return;
 
             const data = getData();
-            data.push({ name, method, shipDate, remark, quantity: 20 });
+            data.push({ name, method, shipDate: "", estDate, remark, quantity: 20 });
             saveData(data);
 
             document.getElementById('newName').value = '';
-            document.getElementById('newShipDate').value = '';
+            document.getElementById('newEstDate').value = '';
             document.getElementById('newRemark').value = '';
 
             renderAdminList();
@@ -358,8 +384,8 @@
         }
 
         function resetData() {
-            if (confirm("這將會清除所有調整，恢復為預設 33 筆名單，確定嗎？")) {
-                localStorage.setItem('fuji_shipping_list_v2', JSON.stringify(defaultShippingData));
+            if (confirm("這將會清除所有調整，恢復為預設名單，確定嗎？")) {
+                localStorage.setItem('fuji_shipping_list_v3', JSON.stringify(defaultShippingData));
                 renderAdminList();
                 alert("已恢復預設狀態！");
             }
@@ -368,6 +394,8 @@
         document.getElementById('searchInput').addEventListener('keypress', function (e) {
             if (e.key === 'Enter') { searchData(); }
         });
+
+        initNotice();
     </script>
 </body>
 </html>
